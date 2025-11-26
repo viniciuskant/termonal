@@ -194,11 +194,10 @@ def jogar(palavras, tentativas_max):
             print('\033[1A\033[2K', end='')
             continue
 
-        if tentativa not in possiveis_tentativas[0]:
-            if palavra_correta in possiveis_tentativas[0]:
-                tentativa = palavra_correta
-            else:
-                tentativa = possiveis_tentativas[0]
+        if palavra_correta in possiveis_tentativas:
+            tentativa = palavra_correta
+        elif tentativa not in possiveis_tentativas:
+            tentativa = possiveis_tentativas[0]
 
         feedback_str, feedback_detalhado, tentativa_original = dar_feedback(palavra_correta, tentativa)
         
