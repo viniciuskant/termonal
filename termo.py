@@ -16,65 +16,43 @@ def init_estado_letras(dicionario):
         dicionario[letra] = "branco"
 
 def simplifica(palavra):
-    dicionario = {
-        'a':'a', 'á':'a', 'ã':'a', 'â':'a', 'b':'b', 'c':'c', 'ç':'c', 'd':'d', 'e':'e', 'é':'e', 'ê':'e', 'f':'f', 'g':'g', 'h':'h', 'i':'i', 'í':'i', 'j':'j', 'k':'k', 'l':'l', 'm':'m', 'n':'n', 'o':'o', 'ó':'o', 'ô':'o', 'p':'p', 'q':'q', 'r':'r', 's':'s', 't':'t', 'u':'u', 'ú':'u', 'ü':'u', 'v':'v', 'w':'w', 'x':'x', 'y':'y', 'z':'z'
+    inversoes = {
+        'à': 'a', 'á': 'a', 'ã': 'a', 'â': 'a', 'ä': 'a',
+        'è': 'e', 'é': 'e', 'ẽ': 'e', 'ê': 'e', 'ë': 'e',
+        'ì': 'i', 'í': 'i', 'ĩ': 'i', 'î': 'i', 'ï': 'i',
+        'ò': 'o', 'ó': 'o', 'õ': 'o', 'ô': 'o', 'ö': 'o',
+        'ù': 'u', 'ú': 'u', 'ũ': 'u', 'û': 'u', 'ü': 'u',
+        'ç': 'c'
     }
-    palavra = [dicionario[i] for i in palavra]
+    palavra = [inversoes.get(i, i) for i in palavra]
     return "".join(palavra)
 
-def possibilidades(palavra, palavras):
-    dicionario = {
-        'a': ['a', 'á', 'ã', 'â'],
-        'c': ['c', 'ç'],
-        'e': ['e', 'é', 'ê'],
-        'i': ['i', 'í'],
-        'o': ['o', 'ó', 'ô'],
-        'u': ['u', 'ú', 'ü']
-    }
-    
-    inversoes = {
-        'á': 'a', 'ã': 'a', 'â': 'a', 'é': 'e', 'ê': 'e', 'í': 'i', 'ó': 'o', 'ô': 'o', 'ú': 'u', 'ü': 'u', 'ç': 'c'
-    }
-    
-    variacoes = []
-    for letra in palavra:
-        if letra in dicionario:
-            variacoes.append(dicionario[letra])
-        else:
-            if letra in inversoes:
-                letra_base = inversoes[letra]
-                if letra_base in dicionario:
-                    variacoes.append(dicionario[letra_base])
-                else:
-                    variacoes.append([letra])
-            else:
-                variacoes.append([letra])
-
-    possibilidades_palavras = [''.join(comb) for comb in product(*variacoes)]
-    
-    retorno = [p for p in possibilidades_palavras if p in palavras]
-    
-    return retorno
-
 def ler_palavras(diretorio, tamanho):
-    palavras = []
-    conjugacoes = []
+    palavras = {}
+    conjugacoes = set()
     path_conj = 'pt-br/conjugações'
     path_icf = 'pt-br/icf'
 
     with open(os.path.join(path_conj), 'r', encoding='utf-8') as f:
         for linha in f.readlines():
             palavra = linha.strip().lower()
-            if len(palavra) == tamanho:
-                conjugacoes.append(palavra)
+            if len(palavra) != tamanho:
+                continue
+            conjugacoes.add(palavra)
 
     with open(os.path.join(path_icf), 'r', encoding='utf-8') as f:
         for linha in f.readlines():
             linha = linha.split(",")[0]
             palavra = linha.strip().lower()
 
-            if len(palavra) == tamanho and palavra not in conjugacoes:
-                palavras.append(palavra)
+            if palavra in conjugacoes:
+                continue
+            if len(palavra) != tamanho:
+                continue
+
+            simplificada = simplifica(palavra)
+
+            palavras[simplificada] = palavra
 
     return palavras
 
@@ -144,7 +122,7 @@ def clear_line():
     print('\033[2K', end='\r')
 
 def jogar(palavras, tentativas_max):
-    palavra_correta = random.choice(palavras)
+    palavra_correta = random.choice(list(palavras.values()))
     tentativas = 0
     estado_letras = {}
     init_estado_letras(estado_letras)
@@ -185,19 +163,16 @@ def jogar(palavras, tentativas_max):
             print('\033[1A\033[2K', end='')
             continue
 
-        possiveis_tentativas = possibilidades(tentativa, palavras)
+        tentativa_norm = simplifica(tentativa)
 
-        if len(possiveis_tentativas) == 0:
-            print("Essa palavra não é aceita!")
+        if tentativa_norm not in palavras:
+            print(f"'{tentativa}' não é aceita!")
             input("Pressione Enter para continuar...")
             clear_line()
             print('\033[1A\033[2K', end='')
             continue
 
-        if palavra_correta in possiveis_tentativas:
-            tentativa = palavra_correta
-        elif tentativa not in possiveis_tentativas:
-            tentativa = possiveis_tentativas[0]
+        tentativa = palavras[tentativa_norm]
 
         feedback_str, feedback_detalhado, tentativa_original = dar_feedback(palavra_correta, tentativa)
         
