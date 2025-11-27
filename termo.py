@@ -2,7 +2,8 @@ import os
 import random
 import argparse
 from itertools import product
- 
+import math
+
 VERDE = '\033[92m'
 AMARELO = '\033[95m'
 BRANCO = '\033[97m'
@@ -29,6 +30,7 @@ def simplifica(palavra):
 
 def ler_palavras(diretorio, tamanho):
     palavras = {}
+    peso = []
     conjugacoes = set()
     path_conj = 'pt-br/conjugações'
     path_icf = 'pt-br/icf'
@@ -42,19 +44,20 @@ def ler_palavras(diretorio, tamanho):
 
     with open(os.path.join(path_icf), 'r', encoding='utf-8') as f:
         for linha in f.readlines():
-            linha = linha.split(",")[0]
-            palavra = linha.strip().lower()
+            linha = linha.split(",")
+            tupla = (linha[0], float(linha[1][:-1]))
 
-            if palavra in conjugacoes:
+            if tupla[0] in conjugacoes:
                 continue
-            if len(palavra) != tamanho:
+            if len(tupla[0]) != tamanho:
                 continue
 
-            simplificada = simplifica(palavra)
+            simplificada = simplifica(tupla[0])
 
-            palavras[simplificada] = palavra
+            palavras[simplificada] = tupla[0]
+            peso.append(tupla)
 
-    return palavras
+    return palavras, peso
 
 def dar_feedback(palavra, tentativa):
     palavra = simplifica(palavra)
@@ -121,8 +124,19 @@ def clear_line():
     """Apaga a linha atual no terminal"""
     print('\033[2K', end='\r')
 
-def jogar(palavras, tentativas_max):
-    palavra_correta = random.choice(list(palavras.values()))
+def probs_exponencial(pesos, alpha=1.0):
+    palavras, w = zip(*pesos)
+    scores = [math.exp(-alpha * x) for x in w] 
+    soma = sum(scores)
+    probs = [s / soma for s in scores]
+    return list(palavras), probs
+
+
+def jogar(palavras, pesos, tentativas_max):
+    escolha, probs = probs_exponencial(pesos)
+    palavra_correta = random.choices(escolha, weights=probs, k=1)[0]
+
+
     tentativas = 0
     estado_letras = {}
     init_estado_letras(estado_letras)
@@ -204,7 +218,7 @@ def main():
     
     diretorio = 'termo/pt-br'
 
-    palavras = ler_palavras(diretorio, args.tamanho)
+    palavras, pesos = ler_palavras(diretorio, args.tamanho)
 
     if len(palavras) == 0:
         print(f"Não há palavras com {args.tamanho} letras no léxico.")
@@ -212,7 +226,7 @@ def main():
 
     print(f"\nBem-vindo ao jogo Termo!")
     print(f"Você tem {args.tentativas} tentativas para acertar a palavra de {args.tamanho} letras.")
-    jogar(palavras, args.tentativas)
+    jogar(palavras, pesos, args.tentativas)
 
 if __name__ == "__main__":
     main()
