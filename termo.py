@@ -55,7 +55,7 @@ def ler_palavras(diretorio, tamanho):
             simplificada = simplifica(tupla[0])
 
             if simplificada not in palavras:
-                palavras[simplificada] = tupla
+                palavras[simplificada] = tupla[0]
                 peso.append(tupla)
 
     return palavras, peso
