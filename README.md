@@ -21,3 +21,12 @@ git clone https://github.com/viniciuskant/termonal.git --depth 1
 cd termonal
 python termonal.py 5 6
 ```
+
+
+ou para o multiplas palavras ao mesmo tempo:
+
+```
+python termonal.py 6 7 --modo 2
+python termonal.py 5 8 --modo 4
+
+```
