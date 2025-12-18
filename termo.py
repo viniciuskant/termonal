@@ -28,37 +28,50 @@ def simplifica(palavra):
     palavra = [inversoes.get(i, i) for i in palavra]
     return "".join(palavra)
 
-def ler_palavras(diretorio, tamanho):
+def ler_palavras(tamanho):
     palavras = {}
+    dict_equivalente = {}
     peso = []
-    conjugacoes = set()
-    path_conj = 'pt-br/conjugações'
-    path_icf = 'pt-br/icf'
-
-    with open(os.path.join(path_conj), 'r', encoding='utf-8') as f:
-        for linha in f.readlines():
-            palavra = linha.strip().lower()
-            if len(palavra) != tamanho:
-                continue
-            conjugacoes.add(palavra)
-
+    path_icf = 'pt-br/icf.sort'
     with open(os.path.join(path_icf), 'r', encoding='utf-8') as f:
-        for linha in f.readlines():
-            linha = linha.split(",")
-            tupla = (linha[0], float(linha[1][:-1]))
+        linhas = f.readlines()
 
-            if tupla[0] in conjugacoes:
-                continue
-            if len(tupla[0]) != tamanho:
-                continue
+    i = 0
+    while i < len(linhas):
+        linha = linhas[i].strip().split(",")
+        tupla = (linha[0], float(linha[1]))
 
-            simplificada = simplifica(tupla[0])
+        if len(tupla[0]) != tamanho:
+            i += 1
+            continue
 
-            if simplificada not in palavras:
-                palavras[simplificada] = tupla[0]
-                peso.append(tupla)
+        simplificada = simplifica(tupla[0])
 
-    return palavras, peso
+        equivalente = [tupla[0]]
+        k = 1
+
+        while i + k < len(linhas):
+            linha_eq = linhas[i + k].strip().split(",")
+            tupla_eq = (linha_eq[0], float(linha_eq[1]))
+
+            simplificada_eq = simplifica(tupla_eq[0])
+
+            if simplificada != simplificada_eq:
+                break
+
+            equivalente.append(tupla_eq[0])
+            k += 1
+
+        dict_equivalente[simplificada] = equivalente
+
+        if simplificada not in palavras:
+            palavras[simplificada] = tupla[0]
+            peso.append(tupla)
+
+        i += k 
+
+    return palavras, peso, dict_equivalente
+
 
 def dar_feedback(palavra, tentativa):
     palavra = simplifica(palavra)
@@ -133,11 +146,10 @@ def probs_exponencial(pesos, alpha=1.0):
     return list(palavras), probs
 
 
-def jogar(palavras, pesos, tentativas_max):
+def jogar(palavras, pesos, tentativas_max, equivalentes):
     escolha, probs = probs_exponencial(pesos)
     palavra_correta = random.choices(escolha, weights=probs, k=1)[0]
-
-
+    correta_simplificada = simplifica(palavra_correta)
     tentativas = 0
     estado_letras = {}
     init_estado_letras(estado_letras)
@@ -171,33 +183,32 @@ def jogar(palavras, pesos, tentativas_max):
             print(f"\n\nSaindo... A palavra correta era: {VERDE}{palavra_correta.upper()}{RESET}")
             return
 
+
         if len(tentativa) != len(palavra_correta):
             print(f"A palavra deve ter {len(palavra_correta)} letras!")
             input("Pressione Enter para continuar...")
-            clear_line()
+            
+            print('\033[1A\033[2K', end='')
             print('\033[1A\033[2K', end='')
             continue
 
         tentativa_norm = simplifica(tentativa)
-
         if tentativa_norm not in palavras:
-            print(f"'{tentativa}' não é aceita!")
+            print(f"{tentativa.upper()} não é aceita!")
             input("Pressione Enter para continuar...")
             clear_line()
             print('\033[1A\033[2K', end='')
-            continue
+            continue\
 
-        tentativa = palavras[tentativa_norm]
+        tentativa = tentativa if tentativa in equivalentes[tentativa_norm] else equivalentes[tentativa_norm][0]
 
         feedback_str, feedback_detalhado, tentativa_original = dar_feedback(palavra_correta, tentativa)
         
         historico_tentativas.append((tentativa_original, feedback_str))
         
-        if tentativa == palavra_correta:
+        if tentativa_norm == correta_simplificada:
             for i, (tentativa_hist, feedback_hist) in enumerate(historico_tentativas):
                 print(f"Tentativa {i+1}: {feedback_hist}")
-            print_estado = print_estado_letras(estado_letras)
-            print(f"Letras: {print_estado}")
             print("\nParabéns, você acertou a palavra!")
             break
 
@@ -207,8 +218,6 @@ def jogar(palavras, pesos, tentativas_max):
     if tentativas >= tentativas_max and tentativa != palavra_correta:
         for i, (tentativa_hist, feedback_hist) in enumerate(historico_tentativas):
             print(f"Tentativa {i+1}: {feedback_hist}")
-        print_estado = print_estado_letras(estado_letras)
-        print(f"Letras: {print_estado}")
         print(f"\nVocê perdeu! A palavra correta era: {VERDE}{palavra_correta.upper()}{RESET}")
 
 def main():
@@ -217,9 +226,8 @@ def main():
     parser.add_argument('tentativas', type=int, help="Número de tentativas possíveis")
     args = parser.parse_args()
     
-    diretorio = 'termo/pt-br'
 
-    palavras, pesos = ler_palavras(diretorio, args.tamanho)
+    palavras, pesos, equivalentes = ler_palavras(args.tamanho)
 
     if len(palavras) == 0:
         print(f"Não há palavras com {args.tamanho} letras no léxico.")
@@ -227,7 +235,7 @@ def main():
 
     print(f"\nBem-vindo ao jogo Termo!")
     print(f"Você tem {args.tentativas} tentativas para acertar a palavra de {args.tamanho} letras.")
-    jogar(palavras, pesos, args.tentativas)
+    jogar(palavras, pesos, args.tentativas, equivalentes)
 
 if __name__ == "__main__":
     main()
